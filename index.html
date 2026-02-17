@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Колесо Фортуны</title>
+    <style>
+        :root {
+            --bg-color: #2c3e50;
+            --panel-color: #34495e;
+            --accent-color: #e67e22;
+            --text-color: #ecf0f1;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-bottom: 20px; letter-spacing: 1px; text-transform: uppercase; }
+
+        .main-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 40px;
+            justify-content: center;
+            align-items: flex-start;
+            width: 100%;
+            max-width: 1100px;
+        }
+
+        /* --- Левая панель: Управление --- */
+        .controls {
+            flex: 1;
+            min-width: 300px;
+            background-color: var(--panel-color);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #5d6d7e;
+            background: #2c3e50;
+            color: white;
+            font-size: 1rem;
+        }
+        input:focus { outline: 2px solid var(--accent-color); border-color: transparent; }
+
+        button.add-btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 0 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        button.add-btn:hover { background: #2ecc71; }
+
+        .item-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 350px;
+            overflow-y: auto;
+            border: 1px solid #5d6d7e;
+            border-radius: 6px;
+        }
+
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            border-bottom: 1px solid #5d6d7e;
+            background: rgba(0,0,0,0.1);
+            align-items: center;
+        }
+        
+        /* The glow CSS block was removed here */
+        
+        .list-item span { font-size: 0.95rem; }
+        .delete-btn {
+            background: transparent;
+            border: none;
+            color: #e74c3c;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1.1rem;
+        }
+        .delete-btn:hover { color: #c0392b; }
+
+        .spin-btn {
+            width: 100%;
+            padding: 18px;
+            margin-top: 25px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent-color);
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #d35400;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .spin-btn:active { 
+            transform: translateY(4px); 
+            box-shadow: 0 0 0 #d35400; 
+        }
+        .spin-btn:disabled { 
+            background: #7f8c8d; 
+            box-shadow: none; 
+            cursor: not-allowed; 
+            transform: none; 
+        }
+
+        /* --- Правая панель: Колесо --- */
+        .wheel-container {
+            position: relative;
+            width: 500px;
+            height: 500px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Canvas */
+        canvas {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            transition: transform 0s; /* Управляется JS */
+        }
+
+        /* Стрелка */
+        .stopper {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 50px;
+            background: #ecf0f1;
+            clip-path: polygon(100% 0, 50% 100%, 0 0);
+            z-index: 10;
+            filter: drop-shadow(0 4px 2px rgba(0,0,0,0.3));
+        }
+
+        .result-box {
+            position: absolute;
+            bottom: -60px;
+            width: 100%;
+            text-align: center;
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--accent-color);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            min-height: 40px;
+        }
+
+        .secret-hint {
+            font-size: 0.8rem;
+            color: #bdc3c7;
+            margin-top: 10px;
+            text-align: center;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Колесо Фортуны</h1>
+
+    <div class="main-container">
+        
+        <!-- Управление -->
+        <div class="controls">
+            <div class="input-wrapper">
+                <input type="text" id="newItemInput" placeholder="Введите название сектора..." onkeypress="handleEnter(event)">
+                <button class="add-btn" onclick="addItem()">+</button>
+            </div>
+
+            <div class="secret-hint" id="statusHint">
+                
+            </div>
+
+            <ul class="item-list" id="itemList">
+                <!-- Элементы списка -->
+            </ul>
+
+            <button class="spin-btn" id="spinBtn" onclick="spin()">КРУТИТЬ КОЛЕСО</button>
+        </div>
+
+        <!-- Колесо -->
+        <div class="wheel-container">
+            <div class="stopper"></div>
+            <canvas id="wheelCanvas" width="800" height="800"></canvas>
+            <div class="result-box" id="result"></div>
+        </div>
+
+    </div>
+
+<script>
+    // --- Конфигурация ---
+    let items = ["Находит кто-то 1(Егора)", "Никому не достаётся(Вадима)", "Получают все(Тимофея)"];
+    
+    // Переменные состояния
+    let currentRotation = 0; 
+    let isSpinning = false;
+    let hasSpunOnce = false; // <--- Флаг для одноразового "подкручивания"
+
+    // Настройка Canvas
+    const canvas = document.getElementById("wheelCanvas");
+    const ctx = canvas.getContext("2d");
+    const size = 800; 
+    const center = size / 2;
+    const radius = size / 2 - 20; 
+
+    // Цвета
+    const colors = [
+        "#E74C3C", "#8E44AD", "#3498DB", "#1ABC9C", "#F1C40F", "#E67E22", "#2ECC71", "#34495E"
+    ];
+
+    // --- Инициализация ---
+    renderList();
+    drawWheel(items); // Отрисовка начального состояния
+
+    // --- Управление списком ---
+
+    function addItem() {
+        const input = document.getElementById("newItemInput");
+        const val = input.value.trim();
+        if(val) {
+            items.push(val);
+            input.value = "";
+            renderList();
+            drawWheel(items);
+        }
+    }
+
+    function removeItem(index) {
+        if(items.length <= 2) {
+            alert("Необходимо минимум 2 элемента.");
+            return;
+        }
+        items.splice(index, 1);
+        renderList();
+        drawWheel(items);
+    }
+
+    function handleEnter(e) {
+        if(e.key === "Enter") addItem();
+    }
+
+    function renderList() {
+        const list = document.getElementById("itemList");
+        list.innerHTML = "";
+        items.forEach((item, index) => {
+            const li = document.createElement("li");
+            li.className = "list-item";
+            
+            li.innerHTML = `
+                <span>${index + 1}. ${item}</span>
+                <button class="delete-btn" onclick="removeItem(${index})">&times;</button>
+            `;
+            list.appendChild(li);
+        });
+    }
+
+    // --- Отрисовка колеса ---
+
+    function shuffleArray(array) {
+        let currentIndex = array.length, randomIndex;
+        while (currentIndex != 0) {
+            randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex--;
+            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+        }
+        return array;
+    }
+
+    function drawWheel(drawItems) {
+        ctx.clearRect(0, 0, size, size);
+        const arc = (2 * Math.PI) / drawItems.length;
+
+        for (let i = 0; i < drawItems.length; i++) {
+            const angle = i * arc;
+            
+            // Рисуем сектор
+            ctx.beginPath();
+            ctx.fillStyle = colors[i % colors.length];
+            ctx.moveTo(center, center);
+            ctx.arc(center, center, radius, angle, angle + arc);
+            ctx.lineTo(center, center);
+            ctx.fill();
+            
+            // Рисуем границы
+            ctx.strokeStyle = "rgba(0,0,0,0.2)";
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // Рисуем текст
+            ctx.save();
+            ctx.translate(center, center);
+            ctx.rotate(angle + arc / 2);
+            ctx.textAlign = "right";
+            ctx.fillStyle = "#fff";
+            ctx.font = "bold 38px sans-serif";
+            ctx.shadowColor = "rgba(0,0,0,0.8)";
+            ctx.shadowBlur = 4;
+            ctx.fillText(drawItems[i], radius - 50, 15);
+            ctx.restore();
+        }
+    }
+
+    // --- Логика вращения (Магия) ---
+
+    function spin() {
+        if (isSpinning) return;
+        if (items.length < 2) {
+            alert("Пожалуйста, добавьте хотя бы 2 элемента.");
+            return;
+        }
+
+        isSpinning = true;
+        document.getElementById("spinBtn").disabled = true;
+        document.getElementById("result").innerText = "";
+
+        // 1. Определение победителя
+        let winningItem;
+
+        if (!hasSpunOnce) {
+            // --- ПОДКРУЧЕННЫЙ СПИН (Только первый раз) ---
+            // Выигрывает элемент под индексом 1 (второй по счету)
+            winningItem = items[1];
+            hasSpunOnce = true; // Флаг сработал
+            //document.getElementById("statusHint").innerText = "Статус: Включен случайный режим.";
+        } else {
+            // --- СЛУЧАЙНЫЙ СПИН (Все последующие разы) ---
+            const randomIndex = Math.floor(Math.random() * items.length);
+            winningItem = items[randomIndex];
+        }
+
+        // 2. Визуальное перемешивание
+        // Это делает невозможным отслеживание секторов глазами.
+        const visualItems = shuffleArray([...items]);
+
+        // 3. Находим позицию победителя в НОВОМ визуальном расположении
+        const winningIndex = visualItems.indexOf(winningItem);
+
+        // 4. Вычисляем вращение, чтобы остановиться на нужном индексе
+        const sliceDeg = 360 / visualItems.length;
+        const sliceCenterAngle = (winningIndex * sliceDeg) + (sliceDeg / 2);
+        
+        // Цель: 270 градусов (Верхняя точка / Стрелка)
+        // Добавляем случайность внутри сектора (-40% до +40%)
+        const offset = (Math.random() * sliceDeg * 0.8) - (sliceDeg * 0.4);
+        
+        let targetRotation = 270 - sliceCenterAngle + offset;
+        
+        // Добавляем полные обороты (от 5 до 10)
+        const spins = 5 + Math.floor(Math.random() * 5);
+        
+        // Вычисляем положительную дельту для достижения цели
+        const currentMod = currentRotation % 360;
+        let diff = targetRotation - currentMod;
+        if(diff < 0) diff += 360; 
+        
+        const finalRotation = currentRotation + diff + (spins * 360);
+
+        // 5. Анимация
+        const duration = 5000;
+        const startTime = performance.now();
+        
+        // Отрисовываем перемешанное колесо НЕМЕДЛЕННО
+        drawWheel(visualItems);
+
+        function animate(time) {
+            const elapsed = time - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // EaseOutQuart
+            const ease = 1 - Math.pow(1 - progress, 4);
+            
+            const currentAngle = currentRotation + (finalRotation - currentRotation) * ease;
+            
+            // Используем CSS transform для производительности
+            canvas.style.transform = `rotate(${currentAngle}deg)`;
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                isSpinning = false;
+                currentRotation = finalRotation;
+                document.getElementById("spinBtn").disabled = false;
+                document.getElementById("result").innerText = winningItem;
+            }
+        }
+        
+        requestAnimationFrame(animate);
+    }
+
+</script>
+</body>
+</html>
