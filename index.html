@@ -350,50 +350,70 @@
         let winningItem;
 
         if (!hasSpunOnce) {
-            // --- ПОДКРУЧЕННЫЙ СПИН (Только первый раз) ---
-            // Выигрывает элемент под индексом 1 (второй по счету)
+            // --- ПОДКРУЧЕННЫЙ СПИН (Только первый раз - элемент под индексом 1) ---
             winningItem = items[1];
-            hasSpunOnce = true; // Флаг сработал
-            //document.getElementById("statusHint").innerText = "Статус: Включен случайный режим.";
+            hasSpunOnce = true; 
         } else {
-            // --- СЛУЧАЙНЫЙ СПИН (Все последующие разы) ---
+            // --- СЛУЧАЙНЫЙ СПИН ---
             const randomIndex = Math.floor(Math.random() * items.length);
             winningItem = items[randomIndex];
         }
 
         // 2. Визуальное перемешивание
-        // Это делает невозможным отслеживание секторов глазами.
         const visualItems = shuffleArray([...items]);
 
-        // 3. Находим позицию победителя в НОВОМ визуальном расположении
+        // 3. Находим позицию победителя
         const winningIndex = visualItems.indexOf(winningItem);
 
-        // 4. Вычисляем вращение, чтобы остановиться на нужном индексе
+        // 4. Вычисляем вращение
         const sliceDeg = 360 / visualItems.length;
         const sliceCenterAngle = (winningIndex * sliceDeg) + (sliceDeg / 2);
         
-        // Цель: 270 градусов (Верхняя точка / Стрелка)
-        // Добавляем случайность внутри сектора (-40% до +40%)
         const offset = (Math.random() * sliceDeg * 0.8) - (sliceDeg * 0.4);
         
         let targetRotation = 270 - sliceCenterAngle + offset;
         
-        // Добавляем полные обороты (от 5 до 10)
-        const spins = 5 + Math.floor(Math.random() * 5);
+        // --- ИЗМЕНЕНИЕ 1: Увеличиваем количество оборотов ---
+        // Было: 5 + random * 5. Стало: от 60 до 90 оборотов, чтобы хватило на минуту вращения
+        const spins = 60 + Math.floor(Math.random() * 30);
         
-        // Вычисляем положительную дельту для достижения цели
         const currentMod = currentRotation % 360;
         let diff = targetRotation - currentMod;
         if(diff < 0) diff += 360; 
         
         const finalRotation = currentRotation + diff + (spins * 360);
 
-        // 5. Анимация
-        const duration = 5000;
+        // --- ИЗМЕНЕНИЕ 2: Время вращения (в миллисекундах) ---
+        // 60000 мс = 60 секунд = 1 минута
+        const duration = 60000; 
+
         const startTime = performance.now();
         
-        // Отрисовываем перемешанное колесо НЕМЕДЛЕННО
         drawWheel(visualItems);
+
+        function animate(time) {
+            const elapsed = time - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // EaseOutQuart - плавное замедление в конце
+            const ease = 1 - Math.pow(1 - progress, 4);
+            
+            const currentAngle = currentRotation + (finalRotation - currentRotation) * ease;
+            
+            canvas.style.transform = `rotate(${currentAngle}deg)`;
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                isSpinning = false;
+                currentRotation = finalRotation;
+                document.getElementById("spinBtn").disabled = false;
+                document.getElementById("result").innerText = winningItem;
+            }
+        }
+        
+        requestAnimationFrame(animate);
+    }
 
         function animate(time) {
             const elapsed = time - startTime;
@@ -422,4 +442,5 @@
 
 </script>
 </body>
+
 </html>
